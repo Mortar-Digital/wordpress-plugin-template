@@ -1,0 +1,175 @@
+#!/usr/bin/env node
+// Renames the stand-in Mortar Example plugin to a real product. Run once,
+// from anywhere inside a fresh copy of the template:
+//
+//   bin/rename <product> <Plugin Name> [--repo <github-repo>]
+//
+//   bin/rename consent "Mortar Consent"
+//   bin/rename cookie-banner "Mortar Cookie Banner"
+//
+// <product> is the word this repository uses everywhere else:
+//   GitHub repo          Mortar-Digital/<product>     (override with --repo)
+//   Composer package     mortar-digital/<product>
+//   Plugin slug          mortar-<product>
+//   PHP namespace        MortarDigital\<StudlyProduct>
+//   Function prefix      mortar_<product_with_underscores>
+//
+// The script does not rewrite itself. It refuses to run again once
+// mortar-example.php is gone. Lockfiles are refreshed afterwards.
+
+import { spawnSync } from 'node:child_process';
+import { existsSync, readdirSync, readFileSync, renameSync, statSync, writeFileSync } from 'node:fs';
+import { dirname, join } from 'node:path';
+import { fileURLToPath } from 'node:url';
+
+const root = join(dirname(fileURLToPath(import.meta.url)), '..');
+const skipDirectories = new Set(['.git', 'node_modules', 'vendor', 'build', '.phpunit.cache', '.idea']);
+
+const args = process.argv.slice(2);
+const positional = [];
+let repoFlag = '';
+
+for (let index = 0; index < args.length; index++) {
+	if (args[index] === '--repo') {
+		repoFlag = args[++index] ?? '';
+		continue;
+	}
+
+	positional.push(args[index]);
+}
+
+const product = positional[0] ?? '';
+const displayName = positional.slice(1).join(' ').trim();
+const repo = repoFlag || product;
+
+if (!/^[a-z][a-z0-9]*(-[a-z0-9]+)*$/.test(product) || product === 'example') {
+	console.error('Product must be lowercase words separated by single hyphens, and must not be "example".');
+	console.error('Example: bin/rename consent "Mortar Consent"');
+	process.exit(1);
+}
+
+if (displayName === '') {
+	console.error('Pass the plugin name: bin/rename consent "Mortar Consent"');
+	process.exit(1);
+}
+
+if (!/^[a-z0-9][a-z0-9._-]*$/.test(repo)) {
+	console.error('--repo must be a GitHub repository name such as consent.');
+	process.exit(1);
+}
+
+const mainFile = join(root, 'mortar-example.php');
+
+if (!existsSync(mainFile)) {
+	console.error('mortar-example.php is not here. bin/rename runs once, on a fresh copy of the template.');
+	process.exit(1);
+}
+
+const studly = product
+	.split('-')
+	.map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+	.join('');
+const underscored = product.replaceAll('-', '_');
+
+// Longer tokens first, so a short token cannot rewrite part of a longer one.
+const pairs = [
+	['MortarDigital\\\\Example', `MortarDigital\\\\${studly}`],
+	['MortarDigital\\Example', `MortarDigital\\${studly}`],
+	['mortar-digital/example', `mortar-digital/${product}`],
+	['mortar-digital-example', `mortar-digital-${product}`],
+	['https://mortar.digital/plugins/example/', `https://mortar.digital/plugins/${product}/`],
+	['https://github.com/Mortar-Digital/wordpress-plugin-template', `https://github.com/Mortar-Digital/${repo}`],
+	['mortar-example', `mortar-${product}`],
+	['mortar_example', `mortar_${underscored}`],
+	['mortarExample', `mortar${studly}`],
+	['MORTAR_EXAMPLE', `MORTAR_${underscored.toUpperCase()}`],
+	['Mortar Example', displayName],
+];
+
+function apply(text) {
+	let next = text;
+
+	for (const [from, to] of pairs) {
+		next = next.replaceAll(from, to);
+	}
+
+	return next;
+}
+
+function walk(directory) {
+	for (const entry of readdirSync(directory)) {
+		if (directory === root && skipDirectories.has(entry)) {
+			continue;
+		}
+
+		const path = join(directory, entry);
+		const info = statSync(path);
+
+		if (info.isDirectory()) {
+			walk(path);
+			continue;
+		}
+
+		if (path === fileURLToPath(import.meta.url)) {
+			continue;
+		}
+
+		const original = readFileSync(path);
+
+		if (original.includes(0)) {
+			continue;
+		}
+
+		const text = original.toString('utf8');
+		const next = apply(text);
+
+		if (next !== text) {
+			writeFileSync(path, next);
+		}
+	}
+}
+
+walk(root);
+renameSync(mainFile, join(root, `mortar-${product}.php`));
+
+const readmePath = join(root, 'README.md');
+const marker = '<!-- template:setup:end -->';
+const readme = readFileSync(readmePath, 'utf8');
+const markerAt = readme.indexOf(marker);
+
+if (markerAt !== -1) {
+	writeFileSync(readmePath, readme.slice(markerAt + marker.length).replace(/^\n+/, ''));
+}
+
+process.chdir(root);
+
+const composer = spawnSync('composer', ['update', '--lock', '--no-install', '--no-interaction', '--no-scripts'], {
+	stdio: 'inherit',
+});
+
+if (composer.status !== 0) {
+	console.error('Could not refresh composer.lock. Run: composer update --lock --no-install');
+	process.exit(composer.status ?? 1);
+}
+
+const pnpm = spawnSync('pnpm', ['install', '--lockfile-only', '--ignore-scripts'], { stdio: 'inherit' });
+
+if (pnpm.status !== 0) {
+	console.error('Could not refresh pnpm-lock.yaml. Run: pnpm install --lockfile-only');
+	process.exit(pnpm.status ?? 1);
+}
+
+console.log(`
+Renamed to ${displayName} (mortar-${product}, MortarDigital\\${studly}).
+
+Still edit by hand:
+  - The description in mortar-${product}.php, composer.json, readme.txt and README.md
+  - The Tags line in readme.txt
+  - SECURITY.md, if this plugin has risks of its own
+  - CONTRIBUTING.md, if this product has rules of its own
+  - .wordpress-org/src/icon.html and banner.html, then bin/render-wporg-assets
+  - The docs URL, if it will not live at https://mortar.digital/plugins/${product}/
+  - Drop admin/, blocks/ or the front-end script if this plugin does not need them
+
+Then run: composer install && pnpm install && composer check && pnpm build
+`);

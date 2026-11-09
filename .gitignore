@@ -1,0 +1,23 @@
+# Dependencies
+vendor/
+node_modules/
+
+# Build output
+build/
+
+# Tool caches
+.phpunit.cache/
+.phpunit.result.cache
+.php-cs-fixer.cache
+
+# Test output
+tests/e2e/artifacts/
+
+# Editors and OS
+.idea/
+.vscode/
+.DS_Store
+*.log
+
+# wp-env writes fixture MU-plugins here
+tests/e2e/wp-env/mu-plugins/*.php

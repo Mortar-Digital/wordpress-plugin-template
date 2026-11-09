@@ -1,0 +1,1 @@
+(()=>{"use strict";const e=window.wp.element,m=window.wp.i18n,a=window.ReactJSXRuntime,r=document.getElementById("mortar-example-admin"),t=window.mortarExampleAdmin?.message||(0,m.__)("Hello from Mortar Example.","mortar-example");r&&(0,e.createRoot)(r).render((0,a.jsx)("p",{className:"mortar-example-admin",children:t}))})();

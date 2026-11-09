@@ -1,0 +1,21 @@
+# Generated, vendored or not ours
+assets/front.min.js
+build/
+vendor/
+node_modules/
+pnpm-lock.yaml
+composer.lock
+tests/e2e/artifacts/
+.wordpress-org/
+
+# Prose and PHP are formatted elsewhere
+*.md
+*.php
+*.html
+
+# Built by pnpm build:admin
+assets/admin/
+
+# Extensionless node scripts. ESLint covers them.
+bin/rename
+bin/render-wporg-assets

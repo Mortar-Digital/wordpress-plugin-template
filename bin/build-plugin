@@ -1,0 +1,41 @@
+#!/usr/bin/env bash
+# Builds the WordPress.org plugin zip from the files that ship:
+#   bin/build-plugin => build/mortar-example-<version>.zip
+# Requires development dependencies (composer install; pnpm install).
+set -euo pipefail
+
+ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+cd "$ROOT"
+composer lint
+node --test --test-isolation=none tests/js/build.test.mjs
+# The settings app ships built; build it fresh rather than trust the working tree.
+pnpm run --silent build:admin > /dev/null
+
+# The plugin header is the one place the version is set.
+VERSION="$(sed -n 's/^ \* Version: *//p' "$ROOT/mortar-example.php")"
+if [[ ! "$VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+  echo "Expected a stable x.y.z Version in mortar-example.php" >&2
+  exit 1
+fi
+STABLE="$(sed -n 's/^Stable tag: *//p' "$ROOT/readme.txt")"
+if [[ "$STABLE" != "$VERSION" ]]; then
+  echo "readme.txt Stable tag ($STABLE) does not match the plugin Version ($VERSION)" >&2
+  exit 1
+fi
+OUT="$ROOT/build"
+STAGE="$OUT/mortar-example"
+
+rm -rf "$STAGE" "$OUT/mortar-example-$VERSION.zip"
+mkdir -p "$STAGE/assets"
+
+# admin/ is the readable source of assets/admin/index.js, shipped alongside it.
+cp -R "$ROOT/src" "$ROOT/blocks" "$ROOT/admin" "$STAGE/"
+cp "$ROOT/mortar-example.php" "$ROOT/uninstall.php" "$ROOT/functions.php" "$ROOT/readme.txt" "$ROOT/LICENSE" "$STAGE/"
+cp "$ROOT/assets/front.js" "$ROOT/assets/front.min.js" "$ROOT/assets/admin.css" "$STAGE/assets/"
+cp -R "$ROOT/assets/admin" "$STAGE/assets/"
+
+# Fail on any PHP syntax error in what ships.
+find "$STAGE" -name '*.php' -print0 | xargs -0 -n1 php -l > /dev/null
+
+(cd "$OUT" && zip -qr "mortar-example-$VERSION.zip" mortar-example)
+echo "Built $OUT/mortar-example-$VERSION.zip"

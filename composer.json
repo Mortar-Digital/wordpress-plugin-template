@@ -1,0 +1,84 @@
+{
+  "name": "mortar-digital/example",
+  "description": "Mortar Example is a starting point. Replace this description.",
+  "type": "wordpress-plugin",
+  "license": "GPL-2.0-or-later",
+  "homepage": "https://mortar.digital/plugins/example/",
+  "authors": [
+    {
+      "name": "Mortar Digital",
+      "homepage": "https://mortar.digital/"
+    }
+  ],
+  "support": {
+    "docs": "https://mortar.digital/plugins/example/",
+    "issues": "https://github.com/Mortar-Digital/wordpress-plugin-template/issues",
+    "source": "https://github.com/Mortar-Digital/wordpress-plugin-template",
+    "security": "https://github.com/Mortar-Digital/wordpress-plugin-template/security"
+  },
+  "require": {
+    "php": ">=8.2",
+    "composer/installers": "^2.3"
+  },
+  "require-dev": {
+    "phpunit/phpunit": "^11.5 || ^12.0",
+    "phpstan/phpstan": "^2.1",
+    "szepeviktor/phpstan-wordpress": "^2.0",
+    "php-cs-fixer/shim": "^3.95",
+    "wp-coding-standards/wpcs": "^3.1"
+  },
+  "autoload": {
+    "psr-4": {
+      "MortarDigital\\Example\\": "src/"
+    }
+  },
+  "autoload-dev": {
+    "psr-4": {
+      "MortarDigital\\Example\\Tests\\": "tests/"
+    }
+  },
+  "extra": {
+    "installer-name": "mortar-example"
+  },
+  "config": {
+    "allow-plugins": {
+      "composer/installers": true,
+      "dealerdirect/phpcodesniffer-composer-installer": true
+    },
+    "platform": {
+      "php": "8.2.0"
+    }
+  },
+  "scripts": {
+    "test": [
+      "phpunit",
+      "node --test --test-isolation=none 'tests/js/*.test.mjs'"
+    ],
+    "test:integration": [
+      "node_modules/.bin/wp-env run cli -- wp plugin activate mortar-example --quiet",
+      "node_modules/.bin/wp-env run cli --env-cwd=wp-content/plugins/mortar-example -- php vendor/bin/phpunit -c phpunit.integration.xml.dist"
+    ],
+    "analyse": "phpstan analyse --no-progress --memory-limit=1G",
+    "lint": [
+      "php bin/lint",
+      "@lint:js"
+    ],
+    "format": [
+      "php-cs-fixer fix",
+      "node node_modules/prettier/bin/prettier.cjs --write ."
+    ],
+    "format:check": [
+      "php-cs-fixer fix --dry-run --diff",
+      "node node_modules/prettier/bin/prettier.cjs --check ."
+    ],
+    "sniff": "phpcs",
+    "check": [
+      "@lint",
+      "@format:check",
+      "@sniff",
+      "@analyse",
+      "@test"
+    ],
+    "lint:js": "node node_modules/eslint/bin/eslint.js . --max-warnings=0"
+  }
+}

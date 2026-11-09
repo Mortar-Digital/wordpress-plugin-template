@@ -1,0 +1,15 @@
+{
+  "$schema": "https://schemas.wp.org/trunk/block.json",
+  "apiVersion": 3,
+  "name": "mortar-example/notice",
+  "title": "Mortar Example notice",
+  "category": "widgets",
+  "icon": "megaphone",
+  "description": "Prints the Mortar Example message.",
+  "keywords": ["mortar"],
+  "textdomain": "mortar-example",
+  "supports": {
+    "html": false
+  },
+  "editorScript": "mortar-example-notice-editor"
+}
